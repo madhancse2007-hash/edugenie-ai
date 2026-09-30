@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduGenie - Google Gemini Powered Learning Assistant</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Welcome to EduGenie 🧠✨</h1>
+            <p>Your personal AI tutor for learning support!</p>
+        </header>
+
+        <!-- Q&A Module -->
+        <section class="feature-section">
+            <form id="qaForm">
+                <div class="section-label">Ask EduGenie a Question:</div>
+                <div class="input-row">
+                    <input type="text" id="question" placeholder="Why is the sky blue?" required autocomplete="off">
+                    <button type="submit" id="qaBtn" class="primary-btn">Get Answer</button>
+                </div>
+            </form>
+            <div id="qaResult" class="output">
+                <div class="placeholder-card"></div>
+            </div>
+        </section>
+
+        <!-- Explanation Module -->
+        <section class="feature-section">
+            <form id="explainForm">
+                <div class="section-label">Need an Explanation?</div>
+                <div class="input-row">
+                    <input type="text" id="topic" placeholder="Photosynthesis" required autocomplete="off">
+                    <button type="submit" id="explainBtn" class="primary-btn">Explain</button>
+                </div>
+            </form>
+            <div id="explanationResult" class="output">
+                <div class="placeholder-card"></div>
+            </div>
+        </section>
+
+        <!-- Summarization Module -->
+        <section class="feature-section">
+            <form id="summaryForm">
+                <div class="section-label">Summarize a Paragraph:</div>
+                <div class="input-row">
+                    <input type="text" id="summaryText" placeholder="Paste long content to summarize" required autocomplete="off">
+                    <button type="submit" id="summaryBtn" class="primary-btn">Summarize</button>
+                </div>
+            </form>
+            <div id="summaryResult" class="output">
+                <div class="placeholder-card"></div>
+            </div>
+        </section>
+
+        <!-- Quiz Generation Module -->
+        <section class="feature-section">
+            <form id="quizForm">
+                <div class="section-label">Generate a Quiz:</div>
+                <div class="input-row">
+                    <input type="text" id="quizText" placeholder="Solar System" required autocomplete="off">
+                    <button type="submit" id="quizBtn" class="primary-btn">Generate Quiz</button>
+                </div>
+            </form>
+            <div id="quizResult" class="output">
+                <div class="placeholder-card"></div>
+            </div>
+        </section>
+
+        <!-- Learning Path Module -->
+        <section class="feature-section">
+            <form id="learningForm">
+                <div class="section-label">Get Learning Recommendations:</div>
+                <div class="input-stacked">
+                    <input type="text" id="learningTopic" placeholder="e.g. Linear Regression" required autocomplete="off">
+                    <button type="submit" id="learningBtn" class="primary-btn">Get Recommendations</button>
+                </div>
+            </form>
+            <div id="learningResult" class="output">
+                <div class="placeholder-card"></div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        // Global storage for current quiz state
+        let currentQuizData = [];
+
+        // Helper: Toggle Button Loading State
+        function setLoading(btn, isLoading, defaultText) {
+            if (isLoading) {
+                btn.disabled = true;
+                btn.innerHTML = `<span class="spinner"></span> Thinking...`;
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = defaultText;
+            }
+        }
+
+        // 1. Q&A Form Submission
+        document.getElementById("qaForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const question = document.getElementById("question").value.trim();
+            const btn = document.getElementById("qaBtn");
+            const resultDiv = document.getElementById("qaResult");
+
+            if (!question) return;
+
+            setLoading(btn, true, "Get Answer");
+
+            try {
+                const response = await fetch(`/qa?question=${encodeURIComponent(question)}`);
+                const data = await response.json();
+                const answer = data.answer || "No response received.";
+
+                resultDiv.innerHTML = `
+                    <div class="card">
+                        <h3>Answer:</h3>
+                        <p class="content-text">${escapeHtml(answer)}</p>
+                    </div>
+                `;
+            } catch (err) {
+                resultDiv.innerHTML = `
+                    <div class="card">
+                        <h3>Answer:</h3>
+                        <p class="content-text" style="color: #dc2626;">Error: Could not retrieve answer. (${err.message})</p>
+                    </div>
+                `;
+            } finally {
+                setLoading(btn, false, "Get Answer");
+            }
+        });
+
+        // 2. Explanation Form Submission
+        document.getElementById("explainForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const topic = document.getElementById("topic").value.trim();
+            const btn = document.getElementById("explainBtn");
+            const resultDiv = document.getElementById("explanationResult");
+
+            if (!topic) return;
+
+            setLoading(btn, true, "Explain");
+
+            try {
+                const response = await fetch("/explain/", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ topic: topic })
+                });
+                const data = await response.json();
+                const explanation = data.explanation || data.error || "No explanation generated.";
+
+                resultDiv.innerHTML = `
+                    <div class="card">
+                        <h3>Explanation:</h3>
+                        <p class="content-text">${escapeHtml(explanation)}</p>
+                    </div>
+                `;
+            } catch (err) {
+                resultDiv.innerHTML = `
+                    <div class="card">
+                        <h3>Explanation:</h3>
+                        <p class="content-text" style="color: #dc2626;">Error: Could not retrieve explanation. (${err.message})</p>
+                    </div>
+                `;
+            } finally {
+                setLoading(btn, false, "Explain");
+            }
+        });
+
+        // 3. Summarization Form Submission
+        document.getElementById("summaryForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const text = document.getElementById("summaryText").value.trim();
+            const btn = document.getElementById("summaryBtn");
+            const resultDiv = document.getElementById("summaryResult");
+
+            if (!text) return;
+
+            setLoading(btn, true, "Summarize");
+
+            try {
+                const response = await fetch("/summarize/", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ text: text })
+                });
+                const data = await response.json();
+                const summary = data.summary || data.error || "No summary generated.";
+
+                resultDiv.innerHTML = `
+                    <div class="card">
+                        <h3>Summary:</h3>
+                        <p class="content-text">${escapeHtml(summary)}</p>
+                    </div>
+                `;
+            } catch (err) {
+                resultDiv.innerHTML = `
+                    <div class="card">
+                        <h3>Summary:</h3>
+                        <p class="content-text" style="color: #dc2626;">Error: Could not summarize text. (${err.message})</p>
+                    </div>
+                `;
+            } finally {
+                setLoading(btn, false, "Summarize");
+            }
+        });
+
+        // 4. Quiz Generation Form Submission
+        document.getElementById("quizForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const text = document.getElementById("quizText").value.trim();
+            const btn = document.getElementById("quizBtn");
+            const resultDiv = document.getElementById("quizResult");
+
+            if (!text) return;
+
+            setLoading(btn, true, "Generate Quiz");
+
+            try {
+                const response = await fetch("/quiz", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ text: text })
+                });
+                const data = await response.json();
+                const quizList = data.quiz;
+
+                if (!Array.isArray(quizList) || quizList.length === 0 || quizList[0].error) {
+                    const errMsg = (quizList && quizList[0] && quizList[0].error) ? quizList[0].error : (data.error || "Unable to generate quiz.");
+                    resultDiv.innerHTML = `
+                        <div class="card">
+                            <h3>Quiz:</h3>
+                            <p class="content-text" style="color: #dc2626;">${escapeHtml(errMsg)}</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                currentQuizData = quizList;
+
+                let quizHtml = `
+                    <div class="card">
+                        <h3>Quiz:</h3>
+                `;
+
+                quizList.forEach((q, index) => {
+                    const qNum = index + 1;
+                    const questionText = escapeHtml(q.question || "");
+                    const divider = index < quizList.length - 1 ? '<hr class="quiz-divider">' : '';
+
+                    let optionsHtml = "";
+                    (q.options || []).forEach((opt, optIndex) => {
+                        const optId = `q${index}_opt${optIndex}`;
+                        optionsHtml += `
+                            <div class="quiz-option">
+                                <input type="radio" id="${optId}" name="q${index}" value="${escapeHtml(opt)}">
+                                <label for="${optId}">${escapeHtml(opt)}</label>
+                            </div>
+                        `;
+                    });
+
+                    quizHtml += `
+                        <div class="quiz-item" id="quizItem-${index}">
+                            <p class="quiz-question"><strong>Q${qNum}: ${questionText}</strong></p>
+                            ${optionsHtml}
+                            <button type="button" class="check-btn" onclick="checkAnswer(${index})">Check Answer</button>
+                            <div id="feedback-${index}" class="quiz-feedback"></div>
+                        </div>
+                        ${divider}
+                    `;
+                });
+
+                quizHtml += `</div>`;
+                resultDiv.innerHTML = quizHtml;
+
+            } catch (err) {
+                resultDiv.innerHTML = `
+                    <div class="card">
+                        <h3>Quiz:</h3>
+                        <p class="content-text" style="color: #dc2626;">Error: Could not generate quiz. (${err.message})</p>
+                    </div>
+                `;
+            } finally {
+                setLoading(btn, false, "Generate Quiz");
+            }
+        });
+
+        // Check Individual Quiz Answer
+        function checkAnswer(qIndex) {
+            const selectedRadio = document.querySelector(`input[name="q${qIndex}"]:checked`);
+            const feedbackDiv = document.getElementById(`feedback-${qIndex}`);
+
+            if (!selectedRadio) {
+                feedbackDiv.className = "quiz-feedback incorrect";
+                feedbackDiv.textContent = "Please select an option first!";
+                return;
+            }
+
+            const chosenAnswer = selectedRadio.value.trim();
+            const questionData = currentQuizData[qIndex];
+            const correctAnswer = (questionData.answer || "").trim();
+
+            if (chosenAnswer.toLowerCase() === correctAnswer.toLowerCase()) {
+                feedbackDiv.className = "quiz-feedback correct";
+                feedbackDiv.textContent = "✅ Correct!";
+            } else {
+                feedbackDiv.className = "quiz-feedback incorrect";
+                feedbackDiv.textContent = `❌ Incorrect. Correct answer: ${correctAnswer}`;
+            }
+        }
+
+        // 5. Learning Recommendations Form Submission
+        document.getElementById("learningForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const topic = document.getElementById("learningTopic").value.trim();
+            const btn = document.getElementById("learningBtn");
+            const resultDiv = document.getElementById("learningResult");
+
+            if (!topic) return;
+
+            setLoading(btn, true, "Get Recommendations");
+
+            try {
+                const response = await fetch(`/learn/recommendations?topic=${encodeURIComponent(topic)}`);
+                const data = await response.json();
+                const rec = data.recommendation || "No recommendations generated.";
+
+                resultDiv.innerHTML = `
+                    <div class="card">
+                        <h3>Learning Recommendations for "${escapeHtml(topic)}":</h3>
+                        <div class="formatted-text">${escapeHtml(rec)}</div>
+                    </div>
+                `;
+            } catch (err) {
+                resultDiv.innerHTML = `
+                    <div class="card">
+                        <h3>Learning Recommendations:</h3>
+                        <p class="content-text" style="color: #dc2626;">Error: Could not retrieve recommendations. (${err.message})</p>
+                    </div>
+                `;
+            } finally {
+                setLoading(btn, false, "Get Recommendations");
+            }
+        });
+
+        // Utility: HTML Escape
+        function escapeHtml(text) {
+            if (!text) return "";
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
